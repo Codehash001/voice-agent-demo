@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build && npx tsx agent.ts download-files",
-    "start": "node start.js",
+    "start": "node start.cjs",
+    "next:start": "next start",
     "lint": "eslint",
     "agent:download": "tsx agent.ts download-files",
     "calendly:setup": "tsx scripts/get-calendly-event-types.ts",

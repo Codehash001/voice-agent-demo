@@ -1,7 +1,7 @@
 const { spawn } = require('child_process');
 
 // Start Next.js frontend
-const frontend = spawn('npm', ['run', 'start'], {
+const frontend = spawn('npm', ['run', 'next:start'], {
   stdio: 'inherit',
   shell: true,
 });
