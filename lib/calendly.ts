@@ -93,12 +93,17 @@ export class CalendlyClient {
     startDate: string,
     endDate: string
   ): Promise<AvailableTime[]> {
-    console.log("Fetching available times:", { eventTypeUri, startDate, endDate });
+    // Use current time as start to ensure it's never in the past
+    const now = new Date();
+    const startTime = now.toISOString();
+    const endTime = `${endDate}T23:59:59Z`;
+    
+    console.log("Fetching available times:", { eventTypeUri, startTime, endTime });
     
     const params = new URLSearchParams({
       event_type: eventTypeUri,
-      start_time: `${startDate}T00:00:00Z`,
-      end_time: `${endDate}T23:59:59Z`,
+      start_time: startTime,
+      end_time: endTime,
     });
 
     console.log("Request URL:", `/event_type_available_times?${params}`);
