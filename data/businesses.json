@@ -1,0 +1,41 @@
+{
+  "businesses": [
+    {
+      "id": "bright-smiles-dental",
+      "name": "Bright Smiles Dental",
+      "phone": "+1 555 123-4567",
+      "software": "Calendly",
+      "status": "Online",
+      "tags": [
+        "SCHEDULING",
+        "APPOINTMENTS"
+      ],
+      "generalInfo": {
+        "practiceName": "Bright Smiles Dental",
+        "phone": "+1 555 123-4567",
+        "software": "Calendly",
+        "noShowFee": 50,
+        "address": "123 Dental Way, Suite 100",
+        "hours": "Monday-Friday 8am-5pm, Saturday 9am-2pm, Closed Sunday",
+        "services": "General dentistry, cleanings, fillings, crowns, root canals, teeth whitening, Invisalign"
+      },
+      "aiFeatures": {
+        "smartCancellations": false,
+        "missedCallRecovery": false,
+        "insurancePreScreen": false,
+        "confirmationNoShow": false,
+        "regularScheduling": true,
+        "treatmentFollowUp": false,
+        "patientReactivation": false,
+        "emergencyTriage": false,
+        "newPatientIntake": false,
+        "dailyAnalytics": false
+      },
+      "agentConfig": {
+        "agentName": "Sarah",
+        "greeting": "Hi there! This is Sarah from Bright Smiles Dental. How can I help you today?",
+        "calendlyEventTypeUri": ""
+      }
+    }
+  ]
+}

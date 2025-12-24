@@ -1,9 +1,9 @@
-import { AccessToken } from "livekit-server-sdk";
+import { AccessToken, RoomServiceClient } from "livekit-server-sdk";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const { roomName, participantName } = await request.json();
+    const { roomName, participantName, businessId } = await request.json();
 
     if (!roomName || !participantName) {
       return NextResponse.json(
@@ -21,6 +21,17 @@ export async function POST(request: NextRequest) {
         { error: "LiveKit credentials not configured" },
         { status: 500 }
       );
+    }
+
+    // Create room with metadata containing businessId
+    const roomService = new RoomServiceClient(wsUrl, apiKey, apiSecret);
+    try {
+      await roomService.createRoom({
+        name: roomName,
+        metadata: JSON.stringify({ businessId: businessId || "bright-smiles-dental" }),
+      });
+    } catch {
+      // Room may already exist, that's ok
     }
 
     const at = new AccessToken(apiKey, apiSecret, {

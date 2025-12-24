@@ -17,6 +17,7 @@ interface VoiceAgentModalProps {
   isOpen: boolean;
   onClose: () => void;
   businessName: string;
+  businessId?: string;
 }
 
 function AgentControlBar() {
@@ -90,6 +91,7 @@ export default function VoiceAgentModal({
   isOpen,
   onClose,
   businessName,
+  businessId,
 }: VoiceAgentModalProps) {
   const [token, setToken] = useState<string>("");
   const [wsUrl, setWsUrl] = useState<string>("");
@@ -110,7 +112,7 @@ export default function VoiceAgentModal({
       const response = await fetch("/api/livekit-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roomName, participantName }),
+        body: JSON.stringify({ roomName, participantName, businessId }),
       });
 
       if (!response.ok) {

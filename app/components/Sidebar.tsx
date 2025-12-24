@@ -18,7 +18,7 @@ const navItems: NavItem[] = [
 
 export default function Sidebar() {
   return (
-    <aside className="fixed left-0 top-0 h-screen w-[180px] bg-[#0f172a] text-white flex flex-col">
+    <aside className="fixed left-0 top-0 h-screen w-[220px] bg-[#0f172a] text-white flex flex-col">
       {/* Logo */}
       <div className="p-4 pt-5">
         <div className="flex items-center gap-2">
@@ -52,18 +52,6 @@ export default function Sidebar() {
           </Button>
         ))}
       </nav>
-
-      {/* Subscription */}
-      <div className="p-4 border-t border-gray-700/50">
-        <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">
-          Subscription
-        </div>
-        <div className="text-sm font-medium mb-2">Enterprise Plan</div>
-        <div className="w-full h-1.5 bg-gray-700 rounded-full overflow-hidden">
-          <div className="w-[35%] h-full bg-blue-500 rounded-full"></div>
-        </div>
-        <div className="text-xs text-gray-400 mt-2">8 / 23 Numbers Active</div>
-      </div>
     </aside>
   );
 }

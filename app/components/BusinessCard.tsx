@@ -6,23 +6,21 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import VoiceAgentModal from "./VoiceAgentModal";
+import { Business } from "@/lib/business-config";
 
 interface BusinessCardProps {
-  name: string;
-  phone: string;
-  software: string;
-  status: "Online" | "Offline";
-  tags: string[];
+  business: Business;
+  onEdit: () => void;
+  onDelete: () => void;
 }
 
 export default function BusinessCard({
-  name,
-  phone,
-  software,
-  status,
-  tags,
+  business,
+  onEdit,
+  onDelete,
 }: BusinessCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { name, phone, software, status, tags } = business;
 
   return (
     <>
@@ -32,7 +30,7 @@ export default function BusinessCard({
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-600 font-semibold text-sm">
-                B
+                {name.charAt(0)}
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900 text-sm">{name}</h3>
@@ -43,10 +41,20 @@ export default function BusinessCard({
               </div>
             </div>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon-sm" className="text-gray-400 hover:text-gray-600">
+              <Button 
+                variant="ghost" 
+                size="icon-sm" 
+                className="text-gray-400 hover:text-gray-600"
+                onClick={onEdit}
+              >
                 <Pencil size={14} />
               </Button>
-              <Button variant="ghost" size="icon-sm" className="text-red-400 hover:text-red-600 hover:bg-red-50">
+              <Button 
+                variant="ghost" 
+                size="icon-sm" 
+                className="text-red-400 hover:text-red-600 hover:bg-red-50"
+                onClick={onDelete}
+              >
                 <Trash2 size={14} />
               </Button>
             </div>
@@ -103,6 +111,7 @@ export default function BusinessCard({
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         businessName={name}
+        businessId={business.id}
       />
     </>
   );
