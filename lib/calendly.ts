@@ -90,13 +90,18 @@ export class CalendlyClient {
 
   async getAvailableTimes(
     eventTypeUri: string,
-    startDate: string,
-    endDate: string
+    _startDate: string,
+    _endDate: string
   ): Promise<AvailableTime[]> {
-    // Use current time as start to ensure it's never in the past
+    // Always calculate fresh times to ensure they're in the future
+    // Add 1 minute buffer to ensure start_time is definitely in the future
     const now = new Date();
+    now.setMinutes(now.getMinutes() + 1);
     const startTime = now.toISOString();
-    const endTime = `${endDate}T23:59:59Z`;
+    
+    // End time: 6 days from now (to stay under 7-day limit)
+    const endDate = new Date(now.getTime() + 6 * 24 * 60 * 60 * 1000);
+    const endTime = endDate.toISOString();
     
     console.log("Fetching available times:", { eventTypeUri, startTime, endTime });
     
