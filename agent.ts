@@ -457,8 +457,9 @@ export default defineAgent({
       stt: new deepgram.STT(),
       llm: new openai.LLM({ model: "gpt-4o-mini" }),
       tts: new TTS({
-        model: "eleven_flash_v2_5",
+        model: "eleven_turbo_v2_5",
         voice: { id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel", category: "premade" },
+        encoding: "pcm_16000",
       }),
     });
 
