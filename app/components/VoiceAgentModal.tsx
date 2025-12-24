@@ -59,7 +59,7 @@ function ActiveCall({ onDisconnect }: { onDisconnect: () => void }) {
 
       <AgentControlBar />
 
-      <div className="flex items-center justify-center gap-4 w-full">
+      <div className="flex gap-4">
         <Button
           variant="outline"
           size="icon"
