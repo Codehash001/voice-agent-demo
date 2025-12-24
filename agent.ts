@@ -272,9 +272,6 @@ export default defineAgent({
         model: "eleven_flash_v2_5",
         voice: { id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel", category: "premade" },
       }),
-      turnDetection: {
-        type: "semantic",
-      },
     });
 
     await session.start({
