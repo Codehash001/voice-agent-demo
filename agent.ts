@@ -308,7 +308,7 @@ function createDynamicAgent(config: BusinessConfig) {
         instructions: `You are ${agentName}, a receptionist at ${generalInfo.practiceName}. Today is ${today}.
 
 YOU MUST USE TOOLS to help callers. You have these tools available:
-- getAvailableSlots: Call this when someone wants to schedule or check availability. Pass startDate and endDate in YYYY-MM-DD format.
+- getAvailableSlots: Call this when someone wants to schedule or check availability. It automatically checks the next 7 days.
 - bookAppointment: Call this to book after you have the patient's name, email, and they've chosen a time slot.
 - getPracticeInfo: Call this for hours, location, services info.
 
@@ -320,7 +320,7 @@ CRITICAL TOOL BEHAVIOR:
 
 APPOINTMENT BOOKING PROCESS:
 1. When caller wants an appointment, first ask their name and EMAIL (required)
-2. Say "Let me check our availability" then CALL getAvailableSlots with today's date and a date 7 days out
+2. Say "Let me check our availability" then CALL getAvailableSlots (no parameters needed)
 3. WAIT for result, then tell them 3-4 available times from the actual result
 4. When they choose, say "Let me book that for you" then CALL bookAppointment
 5. WAIT for result, then confirm the booking based on actual result
@@ -338,13 +338,18 @@ SPEECH RULES:
 - Sound natural and friendly`,
         tools: {
           getAvailableSlots: llm.tool({
-            description: "Get available appointment slots from Calendly for a date range",
+            description: "Get available appointment slots from Calendly. Always checks the next 7 days from today.",
             parameters: z.object({
-              startDate: z.string().describe("Start date in YYYY-MM-DD format"),
-              endDate: z.string().describe("End date in YYYY-MM-DD format"),
+              daysAhead: z.number().optional().describe("Optional: number of days ahead to check (max 7, default 7)"),
             }),
-            execute: async ({ startDate, endDate }) => {
-              console.log(`[TOOL] getAvailableSlots called with startDate=${startDate}, endDate=${endDate}`);
+            execute: async ({ daysAhead = 7 }) => {
+              // Always use today as start and limit to 7 days max
+              const now = new Date();
+              const startDate = now.toISOString().split('T')[0];
+              const days = Math.min(daysAhead, 7);
+              const endDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+              
+              console.log(`[TOOL] getAvailableSlots called: checking ${startDate} to ${endDate}`);
               try {
                 const eventTypeUri = calendly.getEventTypeUri() || process.env.CALENDLY_EVENT_TYPE_URI || "";
                 console.log(`[TOOL] Using eventTypeUri: ${eventTypeUri}`);
