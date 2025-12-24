@@ -452,24 +452,11 @@ export default defineAgent({
     const vad = ctx.proc.userData.vad! as silero.VAD;
     const DynamicAgent = createDynamicAgent(config);
 
-    // Try ElevenLabs TTS, fallback to Deepgram if it fails
-    let ttsEngine;
-    try {
-      ttsEngine = new TTS({
-        model: "eleven_multilingual_v2",
-        voice: { id: "EXAVITQu4vr4xnSDxMaL", name: "Sarah", category: "premade" },
-      });
-      console.log("Using ElevenLabs TTS");
-    } catch (error) {
-      console.log("ElevenLabs TTS failed, falling back to Deepgram TTS");
-      ttsEngine = new deepgram.TTS();
-    }
-
     const session = new voice.AgentSession({
       vad,
       stt: new deepgram.STT(),
       llm: new openai.LLM({ model: "gpt-4o-mini" }),
-      tts: ttsEngine,
+      tts: new deepgram.TTS(),
     });
 
     await session.start({
