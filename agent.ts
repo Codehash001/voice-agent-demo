@@ -9,7 +9,6 @@ import {
 } from "@livekit/agents";
 import * as openai from "@livekit/agents-plugin-openai";
 import * as deepgram from "@livekit/agents-plugin-deepgram";
-import { TTS } from "@livekit/agents-plugin-elevenlabs";
 import * as silero from "@livekit/agents-plugin-silero";
 import { z } from "zod";
 import { fileURLToPath } from "node:url";
@@ -458,10 +457,7 @@ export default defineAgent({
       vad,
       stt: new deepgram.STT(),
       llm: new openai.LLM({ model: "gpt-4o-mini" }),
-      tts: new TTS({
-        model: "eleven_flash_v2_5",
-        voice: { id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel", category: "premade" },
-      }),
+      tts: new deepgram.TTS(),
     });
 
     await session.start({
