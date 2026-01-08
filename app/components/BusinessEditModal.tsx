@@ -1,58 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { X, Calendar, Phone, Shield, Clock, Users, FileText, AlertTriangle, BarChart3 } from "lucide-react";
+import { useState, useEffect, KeyboardEvent } from "react";
+import { X, Building2, Phone, Mail, MapPin, Clock, DollarSign, FileText, Sparkles, ChevronRight, ChevronLeft, Check, Globe, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Business, defaultAIFeatures } from "@/lib/business-config";
+import { Business, defaultBusinessFormData } from "@/lib/business-config";
 import React from "react";
 
 interface BusinessEditModalProps {
   isOpen: boolean;
   onClose: () => void;
   business: Business | null;
-  onSave: (business: Business) => void;
+  onSave: (business: Partial<Business>) => void;
   isNew?: boolean;
 }
 
-const defaultBusiness: Omit<Business, "id"> = {
-  name: "",
-  phone: "",
-  software: "Calendly",
-  status: "Online",
-  tags: ["SCHEDULING", "APPOINTMENTS"],
-  generalInfo: {
-    practiceName: "",
-    phone: "",
-    software: "Calendly",
-    noShowFee: 50,
-    address: "",
-    hours: "Monday-Friday 9am-5pm",
-    services: "",
-  },
-  aiFeatures: defaultAIFeatures,
-  agentConfig: {
-    agentName: "",
-    greeting: "",
-  },
-};
+const daysOfWeek = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
-const aiFeaturesList = [
-  { key: "smartCancellations", label: "Smart Cancellations", description: "Automatically fill gaps by calling eligible patients when slots open up.", icon: Calendar, disabled: true },
-  { key: "missedCallRecovery", label: "Missed Call Recovery", description: "Intercept missed calls and book appointments immediately.", icon: Phone, disabled: true },
-  { key: "insurancePreScreen", label: "Insurance Pre-Screen", description: "Collect details and set coverage expectations during the call.", icon: Shield, disabled: true },
-  { key: "confirmationNoShow", label: "Confirmation & No-Show", description: "Call to confirm and handle no-show fee warnings automatically.", icon: Clock, disabled: true },
-  { key: "regularScheduling", label: "Regular Scheduling", description: "Standard booking following provider-specific preferences.", icon: Calendar, disabled: false },
-  { key: "treatmentFollowUp", label: "Treatment Follow-Up", description: "Call patients with unscheduled diagnosed treatment.", icon: FileText, disabled: true },
-  { key: "patientReactivation", label: "Patient Reactivation", description: "Recall patients not seen in 12-24 months.", icon: Users, disabled: true },
-  { key: "emergencyTriage", label: "Emergency Triage", description: "After-hours structured emergency questioning and escalation.", icon: AlertTriangle, disabled: true },
-  { key: "newPatientIntake", label: "New Patient Intake", description: "Collect demographics and explain what to expect.", icon: Users, disabled: true },
-  { key: "dailyAnalytics", label: "Daily Analytics", description: "Generate and send daily ROI reports to the office manager.", icon: BarChart3, disabled: true },
+const steps = [
+  { id: 1, title: "Basic Info", description: "Business details" },
+  { id: 2, title: "Hours & Services", description: "Operating schedule" },
+  { id: 3, title: "Additional Details", description: "Extra information" },
 ];
 
 export default function BusinessEditModal({
@@ -62,16 +33,71 @@ export default function BusinessEditModal({
   onSave,
   isNew = false,
 }: BusinessEditModalProps) {
-  const [formData, setFormData] = useState<Business | Omit<Business, "id">>(
-    business || defaultBusiness
-  );
+  const [formData, setFormData] = useState({
+    name: "",
+    phone_no: "",
+    address: "",
+    operating_hours: defaultBusinessFormData.operating_hours,
+    practice_software: "",
+    services: [] as string[],
+    no_show_fees: 0,
+    admin_email: "",
+    additional_details: "",
+  });
+  const [servicesInput, setServicesInput] = useState("");
+  const [servicesList, setServicesList] = useState<string[]>([]);
+  const [timezone, setTimezone] = useState("America/New_York");
+  const [customHours, setCustomHours] = useState<Record<string, string>>({});
+  const [currentStep, setCurrentStep] = useState(1);
+  const [users, setUsers] = useState<Array<{ id: string; email: string }>>([]);
+
+  // Fetch users for admin dropdown
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await fetch("/api/users");
+        const data = await res.json();
+        setUsers(data.users || []);
+      } catch (err) {
+        console.error("Failed to fetch users:", err);
+      }
+    };
+    if (isOpen) {
+      fetchUsers();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (business) {
-      setFormData(business);
+      setFormData({
+        name: business.name || "",
+        phone_no: business.phone_no || "",
+        address: business.address || "",
+        operating_hours: business.operating_hours || defaultBusinessFormData.operating_hours,
+        practice_software: business.practice_software || "",
+        services: business.services || [],
+        no_show_fees: business.no_show_fees || 0,
+        admin_email: business.admin_email || "",
+        additional_details: business.additional_details || "",
+      });
+      setServicesInput("");
+      setServicesList(business.services || []);
     } else {
-      setFormData(defaultBusiness);
+      setFormData({
+        name: "",
+        phone_no: "",
+        address: "",
+        operating_hours: defaultBusinessFormData.operating_hours,
+        practice_software: "",
+        services: [],
+        no_show_fees: 0,
+        admin_email: "",
+        additional_details: "",
+      });
+      setServicesInput("");
+      setServicesList([]);
     }
+    setCurrentStep(1);
   }, [business, isOpen]);
 
   if (!isOpen) return null;
@@ -79,233 +105,463 @@ export default function BusinessEditModal({
   const handleSave = () => {
     const dataToSave = {
       ...formData,
-      id: isNew ? "" : (formData as Business).id,
-      name: formData.generalInfo.practiceName,
-      phone: formData.generalInfo.phone,
-      software: formData.generalInfo.software,
-    } as Business;
+      services: servicesList,
+      ...(business?.id ? { id: business.id } : {}),
+    };
     onSave(dataToSave);
     onClose();
   };
 
-  const updateGeneralInfo = (field: string, value: string | number) => {
+  const handleServiceKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && servicesInput.trim()) {
+      e.preventDefault();
+      if (!servicesList.includes(servicesInput.trim())) {
+        setServicesList([...servicesList, servicesInput.trim()]);
+      }
+      setServicesInput("");
+    }
+  };
+
+  const addService = () => {
+    if (servicesInput.trim() && !servicesList.includes(servicesInput.trim())) {
+      setServicesList([...servicesList, servicesInput.trim()]);
+      setServicesInput("");
+    }
+  };
+
+  const removeService = (service: string) => {
+    setServicesList(servicesList.filter(s => s !== service));
+  };
+
+  const updateField = (field: string, value: string | number) => {
+    setFormData({ ...formData, [field]: value });
+  };
+
+  const updateOperatingHours = (day: string, value: string) => {
     setFormData({
       ...formData,
-      generalInfo: {
-        ...formData.generalInfo,
-        [field]: value,
+      operating_hours: {
+        ...formData.operating_hours,
+        [day]: value,
       },
     });
   };
 
-  const updateAgentConfig = (field: string, value: string) => {
-    setFormData({
-      ...formData,
-      agentConfig: {
-        ...formData.agentConfig,
-        [field]: value,
-      },
-    });
+  const isStep1Valid = formData.name.trim() !== "" && formData.admin_email.trim() !== "";
+  const canProceed = currentStep === 1 ? isStep1Valid : true;
+
+  const handleNext = () => {
+    if (currentStep < 3 && canProceed) {
+      setCurrentStep(currentStep + 1);
+    }
   };
 
-  const toggleAIFeature = (key: string) => {
-    setFormData({
-      ...formData,
-      aiFeatures: {
-        ...formData.aiFeatures,
-        [key]: !formData.aiFeatures[key as keyof typeof formData.aiFeatures],
-      },
-    });
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold">
-            {isNew ? "Create New Practice Account" : "Edit Practice Account"}
-          </h2>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X size={18} />
-          </Button>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-3xl min-h-[600px] max-h-[90vh] overflow-hidden shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] border border-gray-100 flex flex-col">
+        {/* Header */}
+        <div className="bg-[#0f172a] px-6 py-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                <Building2 className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">
+                  {isNew ? "Add New Business" : "Edit Business"}
+                </h2>
+                <p className="text-blue-100 text-sm">
+                  {isNew ? "Set up a new business for AI voice agent" : "Update business information"}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+            >
+              <X size={20} />
+            </Button>
+          </div>
         </div>
 
-        <div className="p-6 overflow-y-auto max-h-[70vh] space-y-8">
-          {/* Section 1: General Information */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium">1</div>
-                <h3 className="text-lg font-semibold">General Information</h3>
-              </div>
-            
-            <div className="grid grid-cols-2 gap-4">
+        {/* Progress Steps */}
+        <div className="px-6 py-4 bg-gray-50 border-b">
+          <div className="flex items-center justify-between">
+            {steps.map((step, index) => (
+              <React.Fragment key={step.id}>
+                {/* Step Circle */}
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm transition-all ${currentStep > step.id
+                      ? "bg-blue-600 text-white"
+                      : currentStep === step.id
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-200 text-gray-500"
+                      }`}
+                  >
+                    {currentStep > step.id ? <Check size={18} /> : step.id}
+                  </div>
+                  <div className="hidden sm:block">
+                    <div className={`text-sm font-medium ${currentStep >= step.id ? "text-gray-900" : "text-gray-400"}`}>
+                      {step.title}
+                    </div>
+                    <div className="text-xs text-gray-400">{step.description}</div>
+                  </div>
+                </div>
+
+                {/* Connector Line */}
+                {index < steps.length - 1 && (
+                  <div className="flex-1 mx-4">
+                    <div className={`h-1 rounded-full transition-all ${currentStep > step.id ? "bg-blue-600" : "bg-gray-200"
+                      }`} />
+                  </div>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 overflow-y-auto flex-1">
+          {/* Step 1: Basic Info */}
+          {currentStep === 1 && (
+            <div className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="practiceName">Practice Name</Label>
+                <Label htmlFor="name" className="flex items-center gap-2 text-gray-700">
+                  <Building2 size={14} className="text-blue-500" />
+                  Business Name <span className="text-red-500">*</span>
+                </Label>
                 <Input
-                  id="practiceName"
-                  value={formData.generalInfo.practiceName}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateGeneralInfo("practiceName", e.target.value)}
-                  placeholder="e.g., Bright Smiles Dental"
+                  id="name"
+                  value={formData.name}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField("name", e.target.value)}
+                  placeholder="Enter business name"
+                  className="h-11"
                 />
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="phone_no" className="flex items-center gap-2 text-gray-700">
+                    <Phone size={14} className="text-blue-500" />
+                    Phone Number
+                  </Label>
+                  <Input
+                    id="phone_no"
+                    value={formData.phone_no}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField("phone_no", e.target.value)}
+                    placeholder="+1 (555) 000-0000"
+                    className="h-11"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="admin_email" className="flex items-center gap-2 text-gray-700">
+                    <Mail size={14} className="text-blue-500" />
+                    Business Admin <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={formData.admin_email}
+                    onValueChange={(value) => updateField("admin_email", value)}
+                  >
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder="Select admin user" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {users.map((user) => (
+                        <SelectItem key={user.id} value={user.email}>
+                          {user.email}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <div className="space-y-2">
-                <Label htmlFor="phone">Dedicated Phone Number</Label>
+                <Label htmlFor="address" className="flex items-center gap-2 text-gray-700">
+                  <MapPin size={14} className="text-blue-500" />
+                  Business Address
+                </Label>
                 <Input
-                  id="phone"
-                  value={formData.generalInfo.phone}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateGeneralInfo("phone", e.target.value)}
-                  placeholder="+1 (555) 000-0000"
+                  id="address"
+                  value={formData.address}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField("address", e.target.value)}
+                  placeholder="123 Main Street, Suite 100, City, State ZIP"
+                  className="h-11"
                 />
               </div>
+
               <div className="space-y-2">
-                <Label>Practice Software</Label>
+                <Label className="flex items-center gap-2 text-gray-700">
+                  <Sparkles size={14} className="text-blue-500" />
+                  Practice Management Software
+                </Label>
                 <Select
-                  value={formData.generalInfo.software}
-                  onValueChange={(value) => updateGeneralInfo("software", value)}
+                  value={formData.practice_software}
+                  onValueChange={(value) => updateField("practice_software", value)}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select software" />
+                  <SelectTrigger className="h-11">
+                    <SelectValue placeholder="Select your practice software" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Calendly">Calendly</SelectItem>
                     <SelectItem value="Dentrix">Dentrix</SelectItem>
                     <SelectItem value="OpenDental">Open Dental</SelectItem>
                     <SelectItem value="Eaglesoft">Eaglesoft</SelectItem>
+                    <SelectItem value="PracticeWorks">PracticeWorks</SelectItem>
+                    <SelectItem value="Curve Dental">Curve Dental</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+          )}
+
+          {/* Step 2: Hours & Services */}
+          {currentStep === 2 && (
+            <div className="space-y-6">
+              {/* Timezone */}
               <div className="space-y-2">
-                <Label htmlFor="noShowFee">No-Show Fee ($)</Label>
-                <Input
-                  id="noShowFee"
-                  type="number"
-                  value={formData.generalInfo.noShowFee}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateGeneralInfo("noShowFee", parseInt(e.target.value) || 0)}
-                  placeholder="50"
-                />
+                <Label className="flex items-center gap-2 text-gray-700">
+                  <Globe size={14} className="text-blue-500" />
+                  Business Timezone
+                </Label>
+                <Select value={timezone} onValueChange={setTimezone}>
+                  <SelectTrigger className="h-11">
+                    <SelectValue placeholder="Select timezone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
+                    <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
+                    <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
+                    <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
+                    <SelectItem value="America/Phoenix">Arizona (MST)</SelectItem>
+                    <SelectItem value="Pacific/Honolulu">Hawaii (HST)</SelectItem>
+                    <SelectItem value="America/Anchorage">Alaska (AKST)</SelectItem>
+                    <SelectItem value="Asia/Kolkata">India (IST)</SelectItem>
+                    <SelectItem value="Europe/London">London (GMT/BST)</SelectItem>
+                    <SelectItem value="Australia/Sydney">Sydney (AEST)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="col-span-2 space-y-2">
-                <Label htmlFor="address">Business Address</Label>
-                <Input
-                  id="address"
-                  value={formData.generalInfo.address}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateGeneralInfo("address", e.target.value)}
-                  placeholder="123 Dental Way, Suite 100, City, State ZIP"
-                />
-              </div>
-              <div className="col-span-2 space-y-2">
-                <Label htmlFor="hours">Business Hours</Label>
-                <Input
-                  id="hours"
-                  value={formData.generalInfo.hours}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateGeneralInfo("hours", e.target.value)}
-                  placeholder="Monday-Friday 8am-5pm, Saturday 9am-2pm"
-                />
-              </div>
-              <div className="col-span-2 space-y-2">
-                <Label htmlFor="services">Services Offered</Label>
-                <Textarea
-                  id="services"
-                  value={formData.generalInfo.services}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateGeneralInfo("services", e.target.value)}
-                  placeholder="General dentistry, cleanings, fillings, crowns, root canals..."
-                  rows={2}
-                />
-              </div>
-            </div>
-            </CardContent>
-          </Card>
 
-          {/* Section 2: Modular AI Features */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium">2</div>
-                <h3 className="text-lg font-semibold">Modular AI Features</h3>
+              {/* Operating Hours - with Custom option */}
+              <div>
+                <Label className="flex items-center gap-2 text-gray-700 mb-3">
+                  <Clock size={14} className="text-blue-500" />
+                  Operating Hours
+                </Label>
+                <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                  {daysOfWeek.map((day) => {
+                    const isCustom = formData.operating_hours[day] === "Custom";
+                    return (
+                      <div key={day} className="flex items-center gap-3">
+                        <span className="w-24 text-sm font-medium text-gray-600 capitalize">{day}</span>
+                        <Select
+                          value={isCustom ? "Custom" : (formData.operating_hours[day] || "9:00 AM - 5:00 PM")}
+                          onValueChange={(value) => {
+                            updateOperatingHours(day, value);
+                            if (value !== "Custom") {
+                              setCustomHours(prev => ({ ...prev, [day]: "" }));
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="w-[180px] h-9 bg-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Closed">Closed</SelectItem>
+                            <SelectItem value="24 Hours">24 Hours</SelectItem>
+                            <SelectItem value="8:00 AM - 5:00 PM">8:00 AM - 5:00 PM</SelectItem>
+                            <SelectItem value="9:00 AM - 5:00 PM">9:00 AM - 5:00 PM</SelectItem>
+                            <SelectItem value="9:00 AM - 6:00 PM">9:00 AM - 6:00 PM</SelectItem>
+                            <SelectItem value="10:00 AM - 6:00 PM">10:00 AM - 6:00 PM</SelectItem>
+                            <SelectItem value="10:00 AM - 7:00 PM">10:00 AM - 7:00 PM</SelectItem>
+                            <SelectItem value="8:00 AM - 12:00 PM">8:00 AM - 12:00 PM</SelectItem>
+                            <SelectItem value="9:00 AM - 1:00 PM">9:00 AM - 1:00 PM</SelectItem>
+                            <SelectItem value="Custom">Custom...</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {isCustom && (
+                          <Input
+                            value={customHours[day] || ""}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                              setCustomHours(prev => ({ ...prev, [day]: e.target.value }));
+                              updateOperatingHours(day, e.target.value || "Custom");
+                            }}
+                            placeholder="e.g., 7:30 AM - 4:00 PM"
+                            className="flex-1 h-9 bg-white"
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              <p className="text-sm text-muted-foreground mb-4">Select which AI capabilities should be enabled for this specific practice.</p>
-            
-            <div className="grid grid-cols-2 gap-3">
-              {aiFeaturesList.map((feature) => {
-                const Icon = feature.icon;
-                const isEnabled = formData.aiFeatures[feature.key as keyof typeof formData.aiFeatures];
-                const isDisabled = feature.disabled;
-                
-                return (
-                  <div
-                    key={feature.key}
-                    className={`flex items-center justify-between px-3 py-2 rounded-lg border transition-all ${
-                      isEnabled && !isDisabled
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200 bg-white"
-                    } ${isDisabled ? "opacity-50" : ""}`}
+
+              {/* Services - Pills with Enter to Add */}
+              <div className="space-y-3">
+                <Label className="flex items-center gap-2 text-gray-700">
+                  <FileText size={14} className="text-blue-500" />
+                  Services Offered
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={servicesInput}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setServicesInput(e.target.value)}
+                    onKeyDown={handleServiceKeyDown}
+                    placeholder="Type a service and press Enter..."
+                    className="flex-1 h-11"
+                  />
+                  <Button
+                    type="button"
+                    onClick={addService}
+                    className="h-11 px-4 bg-blue-600 hover:bg-blue-700"
+                    disabled={!servicesInput.trim()}
                   >
-                    <div className="flex items-center gap-2">
-                      <div className={`w-8 h-8 rounded-md flex items-center justify-center ${
-                        isEnabled && !isDisabled ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-500"
-                      }`}>
-                        <Icon size={16} />
-                      </div>
-                      <div>
-                        <div className="font-medium text-sm">{feature.label}</div>
-                        <div className="text-xs text-gray-500 max-w-[180px]">{feature.description}</div>
-                      </div>
-                    </div>
-                    <Switch
-                      checked={isEnabled}
-                      onCheckedChange={() => !isDisabled && toggleAIFeature(feature.key)}
-                      disabled={isDisabled}
-                    />
+                    <Plus size={18} />
+                  </Button>
+                </div>
+                {servicesList.length > 0 && (
+                  <div className="flex flex-wrap gap-2 p-4 bg-gradient-to-br from-slate-50 to-gray-100 rounded-xl border border-gray-200 min-h-[70px]">
+                    {servicesList.map((service, index) => (
+                      <span
+                        key={index}
+                        className="group inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-medium shadow-sm border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all cursor-default"
+                      >
+                        {service}
+                        <button
+                          type="button"
+                          onClick={() => removeService(service)}
+                          className="w-5 h-5 rounded-full flex items-center justify-center bg-gray-100 text-gray-400 opacity-60 group-hover:opacity-100 group-hover:bg-red-100 group-hover:text-red-500 transition-all"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
                   </div>
-                );
-              })}
-            </div>
-            </CardContent>
-          </Card>
-
-          {/* Section 3: Agent Configuration */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium">3</div>
-                <h3 className="text-lg font-semibold">Agent Configuration</h3>
+                )}
+                <p className="text-xs text-gray-400">Type a service name and press Enter or click + to add</p>
               </div>
-            
+
+              {/* No-Show Fee */}
+              <div className="space-y-2">
+                <Label htmlFor="no_show_fees" className="flex items-center gap-2 text-gray-700">
+                  <DollarSign size={14} className="text-blue-500" />
+                  No-Show Fee
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                  <Input
+                    id="no_show_fees"
+                    type="number"
+                    value={formData.no_show_fees}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField("no_show_fees", parseFloat(e.target.value) || 0)}
+                    placeholder="0"
+                    className="h-11 pl-8"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Additional Details */}
+          {currentStep === 3 && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="agentName">Agent Name</Label>
-                <Input
-                  id="agentName"
-                  value={formData.agentConfig.agentName}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateAgentConfig("agentName", e.target.value)}
-                  placeholder="e.g., Sarah, Michael, Emily"
-                />
-                <p className="text-xs text-muted-foreground">The AI will introduce itself with this name</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="greeting">Agent Greeting</Label>
+                <Label htmlFor="additional_details" className="flex items-center gap-2 text-gray-700">
+                  <FileText size={14} className="text-blue-500" />
+                  Additional Notes
+                </Label>
                 <Textarea
-                  id="greeting"
-                  value={formData.agentConfig.greeting}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateAgentConfig("greeting", e.target.value)}
-                  placeholder="Hi there! This is Sarah from Bright Smiles Dental. How can I help you today?"
-                  rows={3}
+                  id="additional_details"
+                  value={formData.additional_details}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateField("additional_details", e.target.value)}
+                  placeholder="Add any special instructions, notes, or important information about this business that the AI agent should know..."
+                  rows={5}
+                  className="resize-none"
                 />
-                <p className="text-xs text-muted-foreground">How the agent greets callers when they connect</p>
+              </div>
+
+              {/* Summary Preview */}
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-5 mt-4">
+                <h4 className="text-sm font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                  <Check size={16} className="text-green-500" />
+                  Ready to {isNew ? "Create" : "Update"}
+                </h4>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-gray-500">Name:</span>
+                    <span className="ml-2 text-gray-900 font-medium">{formData.name || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Phone:</span>
+                    <span className="ml-2 text-gray-900">{formData.phone_no || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Admin:</span>
+                    <span className="ml-2 text-gray-900">{formData.admin_email || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Software:</span>
+                    <span className="ml-2 text-gray-900">{formData.practice_software || "—"}</span>
+                  </div>
+                  {servicesInput && (
+                    <div className="col-span-2">
+                      <span className="text-gray-500">Services:</span>
+                      <span className="ml-2 text-gray-900">{servicesInput.split(",").slice(0, 4).map(s => s.trim()).join(", ")}{servicesInput.split(",").length > 4 ? "..." : ""}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-            </CardContent>
-          </Card>
+          )}
         </div>
 
-        <div className="flex justify-end gap-3 p-4 border-t bg-gray-50">
-          <Button variant="outline" onClick={onClose} className="px-8">
-            Cancel
-          </Button>
-          <Button onClick={handleSave} className="px-8 bg-blue-500 hover:bg-blue-600">
-            {isNew ? "Create Business Account" : "Save Changes"}
-          </Button>
+        {/* Footer */}
+        <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
+          <div className="text-sm text-gray-500">
+            Step {currentStep} of {steps.length}
+          </div>
+          <div className="flex gap-3">
+            {currentStep > 1 ? (
+              <Button variant="outline" onClick={handleBack} className="gap-2">
+                <ChevronLeft size={16} />
+                Back
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+            )}
+
+            {currentStep < 3 ? (
+              <Button
+                onClick={handleNext}
+                className="gap-2 bg-blue-600 hover:bg-blue-700"
+                disabled={!canProceed}
+              >
+                Next
+                <ChevronRight size={16} />
+              </Button>
+            ) : (
+              <Button
+                onClick={handleSave}
+                className="gap-2 bg-blue-600 hover:bg-blue-700"
+              >
+                <Check size={16} />
+                {isNew ? "Create Business" : "Save Changes"}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>

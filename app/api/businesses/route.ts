@@ -1,30 +1,28 @@
 import { NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
-import { BusinessesData, Business, generateBusinessId } from "@/lib/business-config";
-
-const dataFilePath = path.join(process.cwd(), "data", "businesses.json");
-
-async function readBusinesses(): Promise<BusinessesData> {
-  try {
-    const data = await fs.readFile(dataFilePath, "utf-8");
-    return JSON.parse(data);
-  } catch {
-    return { businesses: [] };
-  }
-}
-
-async function writeBusinesses(data: BusinessesData): Promise<void> {
-  await fs.writeFile(dataFilePath, JSON.stringify(data, null, 2));
-}
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET() {
   try {
-    const data = await readBusinesses();
-    return NextResponse.json(data);
+    const supabase = await createClient();
+
+    const { data: businesses, error } = await supabase
+      .from("businesses")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching businesses:", error);
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ businesses: businesses || [] });
   } catch (error) {
+    console.error("Error in GET /api/businesses:", error);
     return NextResponse.json(
-      { error: "Failed to read businesses" },
+      { error: "Failed to fetch businesses" },
       { status: 500 }
     );
   }
@@ -32,19 +30,36 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const business: Omit<Business, "id"> = await request.json();
-    const data = await readBusinesses();
-    
-    const newBusiness: Business = {
-      ...business,
-      id: generateBusinessId(business.name),
-    };
-    
-    data.businesses.push(newBusiness);
-    await writeBusinesses(data);
-    
-    return NextResponse.json(newBusiness);
+    const supabase = await createClient();
+    const body = await request.json();
+
+    const { data: business, error } = await supabase
+      .from("businesses")
+      .insert({
+        name: body.name,
+        phone_no: body.phone_no || null,
+        address: body.address || null,
+        operating_hours: body.operating_hours || {},
+        practice_software: body.practice_software || null,
+        services: body.services || [],
+        no_show_fees: body.no_show_fees || 0,
+        admin_email: body.admin_email,
+        additional_details: body.additional_details || null,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error creating business:", error);
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(business);
   } catch (error) {
+    console.error("Error in POST /api/businesses:", error);
     return NextResponse.json(
       { error: "Failed to create business" },
       { status: 500 }
@@ -54,22 +69,44 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const business: Business = await request.json();
-    const data = await readBusinesses();
-    
-    const index = data.businesses.findIndex((b) => b.id === business.id);
-    if (index === -1) {
+    const supabase = await createClient();
+    const body = await request.json();
+
+    if (!body.id) {
       return NextResponse.json(
-        { error: "Business not found" },
-        { status: 404 }
+        { error: "Business ID required" },
+        { status: 400 }
       );
     }
-    
-    data.businesses[index] = business;
-    await writeBusinesses(data);
-    
+
+    const { data: business, error } = await supabase
+      .from("businesses")
+      .update({
+        name: body.name,
+        phone_no: body.phone_no || null,
+        address: body.address || null,
+        operating_hours: body.operating_hours || {},
+        practice_software: body.practice_software || null,
+        services: body.services || [],
+        no_show_fees: body.no_show_fees || 0,
+        admin_email: body.admin_email,
+        additional_details: body.additional_details || null,
+      })
+      .eq("id", body.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating business:", error);
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(business);
   } catch (error) {
+    console.error("Error in PUT /api/businesses:", error);
     return NextResponse.json(
       { error: "Failed to update business" },
       { status: 500 }
@@ -79,22 +116,33 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const supabase = await createClient();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
-    
+
     if (!id) {
       return NextResponse.json(
         { error: "Business ID required" },
         { status: 400 }
       );
     }
-    
-    const data = await readBusinesses();
-    data.businesses = data.businesses.filter((b) => b.id !== id);
-    await writeBusinesses(data);
-    
+
+    const { error } = await supabase
+      .from("businesses")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error deleting business:", error);
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error("Error in DELETE /api/businesses:", error);
     return NextResponse.json(
       { error: "Failed to delete business" },
       { status: 500 }
