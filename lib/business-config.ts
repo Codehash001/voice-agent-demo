@@ -15,6 +15,10 @@ export interface Business {
   updated_at?: string;
 }
 
+export interface BusinessesData {
+  businesses: Business[];
+}
+
 export interface BusinessAgent {
   id: string;
   business_id: string;
