@@ -58,25 +58,28 @@ export default function BusinessesPage() {
         setEditModalOpen(true);
     };
 
-    const handleSave = async (business: Business) => {
-        try {
-            if (isNewBusiness) {
-                await fetch("/api/businesses", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(business),
-                });
-            } else {
-                await fetch("/api/businesses", {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(business),
-                });
+    const handleSave = (business: Partial<Business>) => {
+        const saveBusiness = async () => {
+            try {
+                if (isNewBusiness) {
+                    await fetch("/api/businesses", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(business),
+                    });
+                } else {
+                    await fetch("/api/businesses", {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(business),
+                    });
+                }
+                fetchBusinesses();
+            } catch (error) {
+                console.error("Failed to save business:", error);
             }
-            fetchBusinesses();
-        } catch (error) {
-            console.error("Failed to save business:", error);
-        }
+        };
+        saveBusiness();
     };
 
     const handleDelete = async (id: string) => {
